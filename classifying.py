@@ -1,3 +1,6 @@
+# @Zenia Fragaki
+#4/12/2024
+
 import numpy as np
 import os
 import pandas as pd
@@ -18,47 +21,47 @@ from skimage.transform import resize
 import cv2
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
-# Συνάρτηση για την φόρτωση δεδομένων με Data Augmentation
+# Data Augmentation
 def loadData(X, y, path1, path2, D):
     dim = D
     N = len(y)
     XX = np.zeros((N, dim, dim, 3), float)
 
-    # Δημιουργία του ImageDataGenerator για Augmentation
+    #  ImageDataGenerator for Augmentation
     datagen = ImageDataGenerator(
-        rotation_range=40,      # Περιστροφή εικόνας
-        width_shift_range=0.2,  # Οριζόντια μετατόπιση
-        height_shift_range=0.2, # Κάθετη μετατόπιση
-        shear_range=0.2,        # Αντίστοιχη παραμόρφωση
-        zoom_range=0.2,         # Ζουμ
-        horizontal_flip=True,   # Οριζόντια αναστροφή
-        fill_mode='nearest'     # Συμπλήρωση με τον πλησιέστερο γείτονα
+        rotation_range=40,      # Flip
+        width_shift_range=0.2,  # Shift
+        height_shift_range=0.2, # Height shift
+        shear_range=0.2,        #Shear
+        zoom_range=0.2,         #zoom
+        horizontal_flip=True,   # horizontial flip
+        fill_mode='nearest'     
     )
     
     for i in range(N):
         path = path1 if y[i] == 0 else path2
         im = io.imread(path + '/' + X[i])
         
-        if len(im.shape) == 2 or im.shape[2] == 1:  # Αν η εικόνα είναι ασπρόμαυρη
+        if len(im.shape) == 2 or im.shape[2] == 1:  #For black and white images
             im = cv2.cvtColor(im, cv2.COLOR_GRAY2RGB)
         
         im = np.asarray(im, dtype="float")
         
-        # Augmenting εικόνας
+        # Augmenting of images
         im = resize(im, (dim, dim, 3), anti_aliasing=False)
         im = np.uint8(im)
         
-        # Ανάπτυξη του augmentation με το ImageDataGenerator
+        # augmentation with ImageDataGenerator
         x = np.expand_dims(im, axis=0)
         augmented_images = datagen.flow(x, batch_size=1)
 
-        # Παίρνουμε την πρώτη παραλλαγή και την προσθέτουμε στο dataset
+        # Adding to dataset
         augmented_image = next(augmented_images)[0].astype('uint8')
         XX[i, :, :, :] = augmented_image
 
     return XX
 
-# Συνάρτηση για την ταξινόμηση των εικόνων με διάφορους ταξινομητές
+# Diff classifiers
 def classify_images(X, y, q, algorithm_choice):
     X_selected = X[:, :q]
     X_selected = X_selected.reshape(X_selected.shape[0], -1)  # Flatten the images
@@ -67,7 +70,7 @@ def classify_images(X, y, q, algorithm_choice):
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
 
-    # Επιλογή ταξινομητή
+    # Choose algorithm
     if algorithm_choice == 0:
         model = KNeighborsClassifier(n_neighbors=5)
     elif algorithm_choice == 1:
@@ -95,21 +98,21 @@ def classify_images(X, y, q, algorithm_choice):
     fpr, tpr, _ = roc_curve(y_test, model.predict_proba(X_test_scaled)[:, 1] if hasattr(model, "predict_proba") else y_pred)
     roc_auc = auc(fpr, tpr)
 
-    # Confusion Matrix και Classification Report
+    # Confusion Matrix and Classification Report
     cm = confusion_matrix(y_test, y_pred)
     report = classification_report(y_test, y_pred)
 
-    # Loss για Logistic Regression ή άλλους αλγόριθμους που το υποστηρίζουν
+    #Loss
     if hasattr(model, "predict_proba"):
         from sklearn.metrics import log_loss
         y_prob = model.predict_proba(X_test_scaled)
         loss = log_loss(y_test, y_prob)
     else:
-        loss = None  # Εάν δεν υποστηρίζεται loss για τον αλγόριθμο
+        loss = None  #No loss
 
     return accuracy, loss, roc_auc, fpr, tpr, cm, report, model
 
-# Συνάρτηση για την συνολική ανάλυση των αποτελεσμάτων
+#Results
 def summarize_results(results_summary):
     best_result = max(results_summary, key=lambda x: x[2])
     best_images, best_model, best_accuracy = best_result
@@ -137,11 +140,11 @@ def summarize_results(results_summary):
     
     return summary, results_summary_df
 
-# Αρχικοποίηση και ρύθμιση του πειράματος
+#Initialize
 seed = 7
 np.random.seed(seed)
 
-# Ρύθμιση διαστάσεων και αριθμού εικόνων
+#Dimensiona
 Dimension = 96
 maxImages_list = [30, 50, 60, 100]
 
@@ -149,11 +152,11 @@ grade = ["lowGrade", "highGrade"]
 dataChoice = 0
 results_summary = []
 
-# Ορισμός μονοπατιών
+#Paths
 path1 = r"C:\Users\zenia\OneDrive\Υπολογιστής\8ο_9o εξ\οπτικη μικροσκοπια εργασια ML\LOW GRADE"
 path2 = r"C:\Users\zenia\OneDrive\Υπολογιστής\8ο_9o εξ\οπτικη μικροσκοπια εργασια ML\HIGH GRADE"
 
-# Εκπαίδευση και αξιολόγηση για διαφορετικούς αριθμούς εικόνων
+#Training
 for maxImages in maxImages_list:
     X1 = os.listdir(path1)[:maxImages]
     X2 = os.listdir(path2)[:maxImages]
@@ -164,7 +167,7 @@ for maxImages in maxImages_list:
     Xx = np.concatenate((X1, X2), axis=0)
     y = np.concatenate((y1, y2), axis=0)
     
-    # Φόρτωση δεδομένων με Augmentation
+    #Loading Data
     X = loadData(Xx, y, path1, path2, Dimension)
     
     best_accuracy = 0
@@ -174,15 +177,15 @@ for maxImages in maxImages_list:
     roc_data = []
     losses = []
 
-    # Δοκιμή για διαφορετικούς ταξινομητές
-    for B_model in range(9):  # Αλλάζουμε το range ώστε να συμπεριλάβουμε όλους τους ταξινομητές
+    # Classifying
+    for B_model in range(9):  #
         accuracy, loss, auc_value, fpr, tpr, cm, report, model = classify_images(X, y, q=50, algorithm_choice=B_model)
         all_results.append([model.__class__.__name__, accuracy, auc_value, loss])  # Αποθήκευση αποτελεσμάτων
         confusion_matrices.append(cm)
         roc_data.append((fpr, tpr, auc_value))
         losses.append(loss)
 
-        # Εκτύπωση των αποτελεσμάτων για κάθε αλγόριθμο
+        #Priniting
         print(f"Model: {model.__class__.__name__}")
         print(f"Accuracy: {accuracy * 100:.2f}%")
         print(f"Loss: {loss if loss is not None else 'N/A'}")
@@ -196,12 +199,12 @@ for maxImages in maxImages_list:
 
     results_summary.append([maxImages, best_model, best_accuracy])
 
-# Συνοπτικά αποτελέσματα στο τέλος
+#Result summury
 summary, results_summary_df = summarize_results(results_summary)
 print("\nBest Model Summary:")
 print(summary)
 
-# 1. Bar chart για την ακρίβεια κάθε αλγορίθμου
+# 1Accuracy
 model_names = ["KNeighbors", "Random Forest", "Logistic Regression", "SVC", "Decision Tree", "Gradient Boosting", "AdaBoost", "GaussianNB", "XGBoost"]
 accuracies = [result[1] for result in all_results]
 losses = [result[3] for result in all_results]
