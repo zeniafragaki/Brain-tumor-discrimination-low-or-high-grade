@@ -2,235 +2,144 @@
 #4/12/2024
 
 import numpy as np
-import os
-import pandas as pd
 import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import accuracy_score, roc_curve, auc, confusion_matrix, classification_report
-from sklearn.svm import SVC
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, AdaBoostClassifier
-from sklearn.linear_model import LogisticRegression
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.naive_bayes import GaussianNB
 import seaborn as sns
-import xgboost as xgb
-from skimage import io
+import os
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.preprocessing import StandardScaler
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+from xgboost import XGBClassifier
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+from skimage.io import imread
 from skimage.transform import resize
-import cv2
+from skimage.filters import gaussian
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
-# Data Augmentation
-def loadData(X, y, path1, path2, D):
-    dim = D
-    N = len(y)
-    XX = np.zeros((N, dim, dim, 3), float)
+# ----------- Παράμετροι ----------- #
+SEED = 42
+np.random.seed(SEED)
+DIMENSION = 128  # Ανάλυση εικόνας
+DATA_PATH_LOW = r"C:\Users\zenia\OneDrive\Υπολογιστής\8ο_9o εξ\οπτικη μικροσκοπια εργασια ML\LOW GRADE"  # Διαδρομή για Low Grade
+DATA_PATH_HIGH = r"C:\Users\zenia\OneDrive\Υπολογιστής\8ο_9o εξ\οπτικη μικροσκοπια εργασια ML\HIGH GRADE"  # Διαδρομή για High Grade
 
-    #  ImageDataGenerator for Augmentation
-    datagen = ImageDataGenerator(
-        rotation_range=40,      # Flip
-        width_shift_range=0.2,  # Shift
-        height_shift_range=0.2, # Height shift
-        shear_range=0.2,        #Shear
-        zoom_range=0.2,         #zoom
-        horizontal_flip=True,   # horizontial flip
-        fill_mode='nearest'     
-    )
-    
-    for i in range(N):
-        path = path1 if y[i] == 0 else path2
-        im = io.imread(path + '/' + X[i])
-        
-        if len(im.shape) == 2 or im.shape[2] == 1:  #For black and white images
-            im = cv2.cvtColor(im, cv2.COLOR_GRAY2RGB)
-        
-        im = np.asarray(im, dtype="float")
-        
-        # Augmenting of images
-        im = resize(im, (dim, dim, 3), anti_aliasing=False)
-        im = np.uint8(im)
-        
-        # augmentation with ImageDataGenerator
-        x = np.expand_dims(im, axis=0)
-        augmented_images = datagen.flow(x, batch_size=1)
+# ----------- Φόρτωση Εικόνων ----------- #
+def load_images(data_path_low, data_path_high, dim):
+    """Φόρτωση και κανονικοποίηση εικόνων."""
+    low_images = [os.path.join(data_path_low, f) for f in os.listdir(data_path_low) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.tif', '.tiff'))]
+    high_images = [os.path.join(data_path_high, f) for f in os.listdir(data_path_high) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.tif', '.tiff'))]
 
-        # Adding to dataset
-        augmented_image = next(augmented_images)[0].astype('uint8')
-        XX[i, :, :, :] = augmented_image
+    # Debug prints to check the image paths
+    print(f"Found {len(low_images)} low grade images.")
+    print(f"Found {len(high_images)} high grade images.")
 
-    return XX
+    images, labels = [], []
+    for img_path in low_images:
+        try:
+            img = imread(img_path)
+            img_resized = resize(img, (dim, dim, 3), anti_aliasing=True)
+            img_filtered = gaussian(img_resized, sigma=1)  # Apply Gaussian filtering
+            img_filtered = img_filtered / 255.0  # Κανονικοποίηση
+            images.append(img_filtered)
+            labels.append(0)
+        except Exception as e:
+            print(f"Error reading image {img_path}: {e}")
 
-# Diff classifiers
-def classify_images(X, y, q, algorithm_choice):
-    X_selected = X[:, :q]
-    X_selected = X_selected.reshape(X_selected.shape[0], -1)  # Flatten the images
-    X_train, X_test, y_train, y_test = train_test_split(X_selected, y, test_size=0.3, random_state=42)
-    scaler = StandardScaler()
-    X_train_scaled = scaler.fit_transform(X_train)
-    X_test_scaled = scaler.transform(X_test)
+    for img_path in high_images:
+        try:
+            img = imread(img_path)
+            img_resized = resize(img, (dim, dim, 3), anti_aliasing=True)
+            img_filtered = gaussian(img_resized, sigma=1)  # Apply Gaussian filtering
+            img_filtered = img_filtered / 255.0  # Κανονικοποίηση
+            images.append(img_filtered)
+            labels.append(1)
+        except Exception as e:
+            print(f"Error reading image {img_path}: {e}")
 
-    # Choose algorithm
-    if algorithm_choice == 0:
-        model = KNeighborsClassifier(n_neighbors=5)
-    elif algorithm_choice == 1:
-        model = RandomForestClassifier(n_estimators=100, random_state=42)
-    elif algorithm_choice == 2:
-        model = LogisticRegression(random_state=42, max_iter=1000)
-    elif algorithm_choice == 3:
-        model = SVC(probability=True, random_state=42)
-    elif algorithm_choice == 4:
-        model = DecisionTreeClassifier(random_state=42)
-    elif algorithm_choice == 5:
-        model = GradientBoostingClassifier(n_estimators=100, random_state=42)
-    elif algorithm_choice == 6:
-        model = AdaBoostClassifier(n_estimators=100, random_state=42)
-    elif algorithm_choice == 7:
-        model = GaussianNB()
-    elif algorithm_choice == 8:
-        model = xgb.XGBClassifier(use_label_encoder=False, eval_metric='mlogloss')
-    else:
-        raise ValueError("Invalid algorithm choice.")
+    print(f"Final dataset: {len(images)} images, Labels: {len(labels)}")
+    return np.array(images), np.array(labels)
 
-    model.fit(X_train_scaled, y_train)
-    y_pred = model.predict(X_test_scaled)
+# Φόρτωση εικόνων
+X, y = load_images(DATA_PATH_LOW, DATA_PATH_HIGH, DIMENSION)
+
+# Debug prints to check the shapes of X and y
+print(f"Shape of X: {X.shape}")
+print(f"Shape of y: {y.shape}")
+
+# Split the data
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=SEED)
+
+# Data augmentation
+datagen = ImageDataGenerator(
+    rotation_range=20,
+    width_shift_range=0.2,
+    height_shift_range=0.2,
+    shear_range=0.2,
+    zoom_range=0.2,
+    horizontal_flip=True,
+    fill_mode='nearest'
+)
+
+# Fit the data generator on the training data
+datagen.fit(X_train)
+
+# Flatten the images for the classifiers
+X_train_flat = X_train.reshape((X_train.shape[0], -1))
+X_test_flat = X_test.reshape((X_test.shape[0], -1))
+
+# Standardize the data
+scaler = StandardScaler()
+X_train_flat = scaler.fit_transform(X_train_flat)
+X_test_flat = scaler.transform(X_test_flat)
+
+# Print features and labels
+print("Training features and labels:")
+print(X_train_flat)
+print(y_train)
+
+print("Testing features and labels:")
+print(X_test_flat)
+print(y_test)
+
+# Initialize classifiers with hyperparameter grids
+classifiers = {
+    "KNN": (KNeighborsClassifier(), {'n_neighbors': [3, 5, 7]}),
+    "SVM": (SVC(), {'C': [0.1, 1, 10], 'kernel': ['linear', 'rbf']}),
+    "Logistic Regression": (LogisticRegression(), {'C': [0.1, 1, 10]}),
+    "Random Forest": (RandomForestClassifier(), {'n_estimators': [50, 100, 200]}),
+    "XGBoost": (XGBClassifier(), {'n_estimators': [50, 100, 200], 'learning_rate': [0.01, 0.1, 0.2]})
+}
+
+# Train and evaluate each classifier with hyperparameter tuning
+best_accuracy = 0
+best_classifier_name = None
+best_classifier = None
+
+for name, (clf, param_grid) in classifiers.items():
+    grid_search = GridSearchCV(clf, param_grid, cv=5, scoring='accuracy')
+    grid_search.fit(X_train_flat, y_train)
+    best_clf = grid_search.best_estimator_
+    y_pred = best_clf.predict(X_test_flat)
     accuracy = accuracy_score(y_test, y_pred)
-    fpr, tpr, _ = roc_curve(y_test, model.predict_proba(X_test_scaled)[:, 1] if hasattr(model, "predict_proba") else y_pred)
-    roc_auc = auc(fpr, tpr)
-
-    # Confusion Matrix and Classification Report
+    print(f"{name} Best Parameters: {grid_search.best_params_}")
+    print(f"{name} Accuracy: {accuracy:.2f}")
+    print(classification_report(y_test, y_pred))
+    
+    # Confusion matrix
     cm = confusion_matrix(y_test, y_pred)
-    report = classification_report(y_test, y_pred)
-
-    #Loss
-    if hasattr(model, "predict_proba"):
-        from sklearn.metrics import log_loss
-        y_prob = model.predict_proba(X_test_scaled)
-        loss = log_loss(y_test, y_prob)
-    else:
-        loss = None  #No loss
-
-    return accuracy, loss, roc_auc, fpr, tpr, cm, report, model
-
-#Results
-def summarize_results(results_summary):
-    best_result = max(results_summary, key=lambda x: x[2])
-    best_images, best_model, best_accuracy = best_result
-    model_names = {
-        0: "KNeighborsClassifier",
-        1: "RandomForestClassifier",
-        2: "LogisticRegression",
-        3: "SVC",
-        4: "DecisionTreeClassifier",
-        5: "GradientBoostingClassifier",
-        6: "AdaBoostClassifier",
-        7: "GaussianNB",
-        8: "XGBClassifier"
-    }
-    best_model_name = model_names[best_model]
-    
-    results_summary_df = pd.DataFrame(results_summary, columns=['Number of Images', 'Best Model', 'Best Accuracy'])
-    
-    summary = (
-        f"Best Algorithm: {best_model_name}\n"
-        f"Number of Images Used: {best_images}\n"
-        f"Best Accuracy: {best_accuracy * 100:.2f}%\n\n"
-        f"{results_summary_df.to_string(index=False)}"
-    )
-    
-    return summary, results_summary_df
-
-#Initialize
-seed = 7
-np.random.seed(seed)
-
-#Dimensiona
-Dimension = 96
-maxImages_list = [30, 50, 60, 100]
-
-grade = ["lowGrade", "highGrade"]
-dataChoice = 0
-results_summary = []
-
-#Paths
-path1 = r"C:\Users\zenia\OneDrive\Υπολογιστής\8ο_9o εξ\οπτικη μικροσκοπια εργασια ML\LOW GRADE"
-path2 = r"C:\Users\zenia\OneDrive\Υπολογιστής\8ο_9o εξ\οπτικη μικροσκοπια εργασια ML\HIGH GRADE"
-
-#Training
-for maxImages in maxImages_list:
-    X1 = os.listdir(path1)[:maxImages]
-    X2 = os.listdir(path2)[:maxImages]
-    
-    y1 = np.zeros(len(X1), int)
-    y2 = np.ones(len(X2), int)
-    
-    Xx = np.concatenate((X1, X2), axis=0)
-    y = np.concatenate((y1, y2), axis=0)
-    
-    #Loading Data
-    X = loadData(Xx, y, path1, path2, Dimension)
-    
-    best_accuracy = 0
-    best_model = None
-    all_results = []
-    confusion_matrices = []
-    roc_data = []
-    losses = []
-
-    # Classifying
-    for B_model in range(9):  #
-        accuracy, loss, auc_value, fpr, tpr, cm, report, model = classify_images(X, y, q=50, algorithm_choice=B_model)
-        all_results.append([model.__class__.__name__, accuracy, auc_value, loss])  # Αποθήκευση αποτελεσμάτων
-        confusion_matrices.append(cm)
-        roc_data.append((fpr, tpr, auc_value))
-        losses.append(loss)
-
-        #Priniting
-        print(f"Model: {model.__class__.__name__}")
-        print(f"Accuracy: {accuracy * 100:.2f}%")
-        print(f"Loss: {loss if loss is not None else 'N/A'}")
-        print(f"AUC: {auc_value:.2f}")
-        print(f"Confusion Matrix:\n{cm}")
-        print(f"Classification Report:\n{report}\n")
-
-        if accuracy > best_accuracy:
-            best_accuracy = accuracy
-            best_model = B_model
-
-    results_summary.append([maxImages, best_model, best_accuracy])
-
-#Result summury
-summary, results_summary_df = summarize_results(results_summary)
-print("\nBest Model Summary:")
-print(summary)
-
-# 1Accuracy
-model_names = ["KNeighbors", "Random Forest", "Logistic Regression", "SVC", "Decision Tree", "Gradient Boosting", "AdaBoost", "GaussianNB", "XGBoost"]
-accuracies = [result[1] for result in all_results]
-losses = [result[3] for result in all_results]
-
-plt.figure(figsize=(10, 6))
-plt.bar(model_names, accuracies)
-plt.title('Accuracy of Different Models')
-plt.xlabel('Model')
-plt.ylabel('Accuracy')
-plt.show()
-
-# 2. ROC Curve
-plt.figure(figsize=(10, 6))
-for i, (fpr, tpr, auc_value) in enumerate(roc_data):
-    plt.plot(fpr, tpr, label=f'{model_names[i]} (AUC = {auc_value:.2f})')
-plt.plot([0, 1], [0, 1], 'k--')
-plt.title('ROC Curve for Different Models')
-plt.xlabel('False Positive Rate')
-plt.ylabel('True Positive Rate')
-plt.legend(loc='lower right')
-plt.show()
-
-# 3. Confusion Matrix Heatmap
-for i, cm in enumerate(confusion_matrices):
-    plt.figure(figsize=(6, 5))
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
-    plt.title(f"Confusion Matrix for {model_names[i]}")
+    plt.figure(figsize=(6, 4))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=['Low Grade', 'High Grade'], yticklabels=['Low Grade', 'High Grade'])
+    plt.title(f'{name} Confusion Matrix')
+    plt.xlabel('Predicted')
+    plt.ylabel('True')
     plt.show()
+    
+    # Update best classifier
+    if accuracy > best_accuracy:
+        best_accuracy = accuracy
+        best_classifier_name = name
+        best_classifier = best_clf
 
+print(f"Best Classifier: {best_classifier_name} with Accuracy: {best_accuracy:.2f}")
