@@ -11,6 +11,19 @@
  Among our classifier’s algorithms, Logistic Regression scored the best accuracy 83.33% with a data set of 50 images. Below will be presented more specifically the highlights of this study and possible future 
  corrections and adjustments for better results
 
+
+# Brain tumor
+
+
+A brain tumor is an abnormal mass of cells that forms in or around the brain, disrupting its normal functions. Tumors can be benign (non-cancerous) or malignant (cancerous) and are classified based on their origin, growth rate, and behavior.
+Primary brain tumors originate in the brain, while secondary brain tumors, or metastases, spread from cancers in other parts of the body. Tumors are further categorized by grade, ranging from low-grade (slow growing, less aggressive) to high-grade (fast-growing, invasive).
+
+# H&E images
+
+
+H&E staining is a critical technique in biomedical microscopy for the analysis of tissues. In our images by highlighting key histological features, it aids in distinguishing between low-grade and high-grade brain tumors. Hematoxylin stains nuclei a deep blue purple, emphasizing nuclear size, shape, and chromatin patterns, while eosin stains cytoplasmic and extracellular components pink, providing contrast to tissue architecture.
+In low-grade tumors, H&E reveals relatively uniform nuclei, lower cellular density, and minimal mitotic activity. High-grade tumors, in contrast, show marked nuclear atypia, increased mitoses, necrosis, and microvascular proliferation. These features enable pathologists to assess tumor grade and guide therapeutic strategies effectively
+
 Citation :
 
 
