@@ -11,7 +11,7 @@
  Among our classifier’s algorithms, Logistic Regression scored the best accuracy 83.33% with a data set of 50 images. Below will be presented more specifically the highlights of this study and possible future 
  corrections and adjustments for better results
 
-Citation
+Citation :
 
 
 If you use any part of this project in your work, kindly reference it using the following citation:
