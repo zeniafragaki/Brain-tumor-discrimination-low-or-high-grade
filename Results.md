@@ -1,17 +1,17 @@
-Results:
+# Results:
 
 
 The results of the evaluation of different models are summarized below.
 
 
-1.Accuracy of different models used: 
+# Accuracy of different models used: 
 
 ![image](https://github.com/user-attachments/assets/7e4bbce8-7422-4a6d-8119-536020980beb)
 
 ![image](https://github.com/user-attachments/assets/903c7930-0bc2-407b-b25f-5e312a3007d5)
 
 
-# ROC CURVE
+# ROC Curve
 
 ![image](https://github.com/user-attachments/assets/b9086791-5b53-486e-96d5-24b8208bc51f)
 
