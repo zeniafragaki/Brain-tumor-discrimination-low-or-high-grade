@@ -6,52 +6,54 @@ The results of the evaluation of different models are summarized below.
 
 1.Accuracy of different models used: 
 
-![image](https://github.com/user-attachments/assets/40ac25db-4328-448f-bebc-f07aa0abd7e0)
+![image](https://github.com/user-attachments/assets/7e4bbce8-7422-4a6d-8119-536020980beb)
 
-2.Confusion Matrices
-
-
-![image](https://github.com/user-attachments/assets/7f20513c-2c04-4ea9-8f09-677e27211f1a)
+![image](https://github.com/user-attachments/assets/903c7930-0bc2-407b-b25f-5e312a3007d5)
 
 
-![image](https://github.com/user-attachments/assets/d182dcf8-8bab-4a12-807c-70664c7647d6)
+# ROC CURVE
 
-
-![image](https://github.com/user-attachments/assets/cac4a47c-6904-428a-afd7-ef8624c7ca9d)
-
-
-![image](https://github.com/user-attachments/assets/aa8ea6d7-d11c-4464-b407-531370f1b327)
+![image](https://github.com/user-attachments/assets/b9086791-5b53-486e-96d5-24b8208bc51f)
 
 
 
 
-
-DISCUSSION 
-
-
-As it highlighted before, Random Forest, Logistic Regression, 
-and Decision Tree achieved higher accuracy than cross validation 
-accuracy scores, indicating that it could be an overfitting problem. 
-According SVM and KNN despite the low accuracies they have 
-achieved higher cross validation accuracies suggesting they could 
-possibly generalize better with further processing and tuning. 
+# Discussion 
 
 
- CONCLUSION 
+The results, indicate that Random Forrest has the perfect 
+accuracy of 100% on the test set. However, in the cross
+validation process achieved a lower score, 87%. This result 
+shows the ability of the model to identify patterns effectively, 
+but the difference might be due to overfitting. Logistic 
+Regression and KNN followed with accuracy 83.33%, a quite 
+well performance but also it achieved  good cross validation 
+score, 80%. On the other hand, SVM and XGBoost show 83.3% 
+and 66.7% each, accuracy. Nevertheless, their cross-validation 
+accuracy was higher from the accuracy to all the test set ,with 
+XGBoost scoring 73% and SVM 87%, respectively. These 
+results show that although have low accuracy in the test set, 
+their cross-validation scores are higher suggesting a better 
+generalization of the model to multiple data splits.
+
+
+# Conclusion
 
  
-In conclusion, the project demonstrates the potential of machine 
-learning techniques in classifying medical images for benign and 
-malignant detection. Random Forest algorithm appears to have 
-the most balanced combination between accuracy and cross 
-validation accuracy. This project was done under specific one 
-circumstances for an undergraduate student project facing 
-problems as lack of bigger amount of data, some time-consuming 
-restrictions and not significant computational power. Although, 
-seems to have some understandable and reasonable results. Future 
-work on the study is important to overcome the obstacles of 
-overfitting, suggesting starting the research from Random Forest 
-as it has shown quite well performance the entire duration of the 
-research with no significant ups and downs as the other models.
+This study evaluates various machine learning algorithms for 
+classifying low-grade and high-grade brain tumor images. 
+Based on the results, it is observed that Random Forest emerged 
+as the best-performing model, achieving an accuracy of 100% 
+on the test set but in cross validation we score is significantly 
+lower shows overfitting. In contrast ,Logistic Regression scores 
+an accuracy of 83.33% and cross validation 80%, indicating a 
+signs of overfitting. Also, KNN ,as Logistic Regression had a 
+drop to accuracy scores in cross validation. Although, SVM, 
+and XGBoost showed higher cross validation scores than test 
+set accuracies highlighting their need for further tuning. Data 
+augmentation played a significant role in enhancing model 
+performance. Future research can focus on improving feature 
+extraction methods and applying more advanced deep learning 
+techniques, especially for larger datasets. 
 
 
