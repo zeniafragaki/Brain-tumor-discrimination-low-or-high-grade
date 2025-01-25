@@ -1,293 +1,283 @@
-# author @Zenia Fragaki
-# 25/12/2024
+# author : Zenia Fragaki
+# date " 25/1/2025
 
-import os
 import numpy as np
-import pandas as pd
-import tifffile as tiff
-import cv2
 import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split, cross_val_score
-from sklearn.preprocessing import StandardScaler
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.svm import SVC
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.linear_model import LogisticRegression
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.metrics import classification_report, confusion_matrix
 import seaborn as sns
-from skimage.feature import graycomatrix, graycoprops
-from scipy.stats import kurtosis, skew
+import os
+import pandas as pd
+from sklearn.model_selection import train_test_split, GridSearchCV, cross_val_score, KFold
+from sklearn.preprocessing import StandardScaler
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+from xgboost import XGBClassifier
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, roc_curve, auc
+from skimage.io import imread
+from skimage.transform import resize
+from skimage.filters import gaussian
+from skimage.color import rgb2gray
+from scipy.stats import skew, kurtosis
+from skimage.feature import graycomatrix, graycoprops, local_binary_pattern
+import cv2
 import time
 
-# paths
-t1_path = r"path to t1"
-t2_path = r"path to t2"
+# ----------- parameters ----------- #
+SEED = 42
+np.random.seed(SEED)
+DIMENSION = 128  
+DATA_PATH = r"your path "
+DATA_PATH_LOW = os.path.join(DATA_PATH, "LOW GRADE")
+DATA_PATH_HIGH = os.path.join(DATA_PATH, "HIGH GRADE")
 
-# excel load
-annotations_path = r"path to excels"
-annotations = pd.read_excel(annotations_path, header=None)
+if not os.path.exists(DATA_PATH_LOW):
+    raise FileNotFoundError(f"The directory {DATA_PATH_LOW} does not exist.")
+if not os.path.exists(DATA_PATH_HIGH):
+    raise FileNotFoundError(f"The directory {DATA_PATH_HIGH} does not exist.")
 
-# filtering and reading Ids and labels
-annotations_cleaned = annotations.dropna()
-ids = annotations_cleaned.iloc[:, 0].astype(int).values  # ID
-labels = annotations_cleaned.iloc[:, 1].values          # labels (e.g. "Cancer", "Benign")
+low_images = [os.path.join(DATA_PATH_LOW, f) for f in os.listdir(DATA_PATH_LOW) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.tif', '.tiff'))]
+high_images = [os.path.join(DATA_PATH_HIGH, f) for f in os.listdir(DATA_PATH_HIGH) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.tif', '.tiff'))]
 
-# ids and images
-X = []  # features
-y = []  # labels
+# ----------- load ----------- #
+def load_images(data_path_low, data_path_high, dim):
+    """Φόρτωση και κανονικοποίηση εικόνων."""
+    low_images = [os.path.join(data_path_low, f) for f in os.listdir(data_path_low) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.tif', '.tiff'))]
+    high_images = [os.path.join(data_path_high, f) for f in os.listdir(data_path_high) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.tif', '.tiff'))]
 
-# save size
-first_image_shape = None
+    images, labels = [], []
+    for img_path in low_images:
+        try:
+            img = imread(img_path)
+            img_resized = resize(img, (dim, dim, 3), anti_aliasing=True)
+            img_filtered = gaussian(img_resized, sigma=1)  # Apply Gaussian filtering
+            images.append(img_filtered)
+            labels.append(0)
+        except Exception as e:
+            print(f"Error reading image {img_path}: {e}")
 
-def perform_segmentation(image):
-    """
-    Εκτελεί αυτόματο segmentation χρησιμοποιώντας thresholding και morphological operations.
-    """
-    # grayscale grayscale 
-    if len(image.shape) > 2:
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    for img_path in high_images:
+        try:
+            img = imread(img_path)
+            img_resized = resize(img, (dim, dim, 3), anti_aliasing=True)
+            img_filtered = gaussian(img_resized, sigma=1)  # Apply Gaussian filtering
+            images.append(img_filtered)
+            labels.append(1)
+        except Exception as e:
+            print(f"Error reading image {img_path}: {e}")
+
+    print(f"Final dataset: {len(images)} images, Labels: {len(labels)}")
+    return np.array(images), np.array(labels)
+
+# ----------- features ----------- #
+def extract_features(images):
+    """features extraction."""
+    features = []
+    feature_names = []
     
-    # normalize 
-    image = cv2.normalize(image, None, 0, 255, cv2.NORM_MINMAX)
+    # initial
+    plot_first_image = True
     
-    # Thresholding
-    _, binary_mask = cv2.threshold(image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-
-    # Morphological operations 
-    kernel = np.ones((3, 3), np.uint8)
-    cleaned_mask = cv2.morphologyEx(binary_mask, cv2.MORPH_CLOSE, kernel)
-
-    return cleaned_mask
-
-def extract_first_order_features(image):
-    """
-    Extracts first-order statistical features from the image.
-    """
-    mean = np.mean(image)
-    std = np.std(image)
-    kurt = kurtosis(image, axis=None)
-    skewness = skew(image, axis=None)
-    return [mean, std, kurt, skewness]
-
-def extract_second_order_features(image):
-    """
-    Extracts second-order texture features from the image using GLCM.
-    """
-    glcm = graycomatrix(image, distances=[1], angles=[0], levels=256, symmetric=True, normed=True)
-    contrast = graycoprops(glcm, 'contrast')[0, 0]
-    dissimilarity = graycoprops(glcm, 'dissimilarity')[0, 0]
-    homogeneity = graycoprops(glcm, 'homogeneity')[0, 0]
-    energy = graycoprops(glcm, 'energy')[0, 0]
-    correlation = graycoprops(glcm, 'correlation')[0, 0]
-    return [contrast, dissimilarity, homogeneity, energy, correlation]
-
-# Flags to print one segmented image of each category
-printed_t1_image = False
-printed_t2_image = False
-
-for id_, label in zip(ids, labels):
-    #paths
-    t1_image_path = os.path.join(t1_path, f"ROI_Z1_{id_}.tif")
-    t2_image_path = os.path.join(t2_path, f"ROI_Z2_{id_}.tif")
-    
-    # if exists
-    if not os.path.exists(t1_image_path) or not os.path.exists(t2_image_path):
-        print(f"Δεν βρέθηκαν εικόνες για το ID {id_}. Παραλείπεται.")
-        continue
-
-    try:
-        # load data 
-        t1_image = tiff.imread(t1_image_path)
-        t2_image = tiff.imread(t2_image_path)
-
-        # color checking
-        if len(t1_image.shape) > 2:
-            t1_image = t1_image[:, :, 0]
-        if len(t2_image.shape) > 2:
-            t2_image = t2_image[:, :, 0]
-
-        # size 
-        if first_image_shape is None:
-            first_image_shape = t1_image.shape
-
-        # resizing
-        t1_image = cv2.resize(t1_image, (first_image_shape[1], first_image_shape[0]))
-        t2_image = cv2.resize(t2_image, (first_image_shape[1], first_image_shape[0]))
-
-        #  segmentation
-        t1_segmented = perform_segmentation(t1_image)
-        t2_segmented = perform_segmentation(t2_image)
-
-        # mask
-        t1_masked = cv2.bitwise_and(t1_image, t1_image, mask=t1_segmented.astype(np.uint8))
-        t2_masked = cv2.bitwise_and(t2_image, t2_image, mask=t2_segmented.astype(np.uint8))
-
-        # Extract first-order features
-        t1_first_order_features = extract_first_order_features(t1_masked)
-        t2_first_order_features = extract_first_order_features(t2_masked)
-
-        # Extract second-order features
-        t1_second_order_features = extract_second_order_features(t1_masked)
-        t2_second_order_features = extract_second_order_features(t2_masked)
-
-        # feaut
-        combined_features = t1_first_order_features + t2_first_order_features + t1_second_order_features + t2_second_order_features
-
-        # labels
-        X.append(combined_features)
-        y.append(label)
-
-        #segmented image for T1
-        if not printed_t1_image:
-            plt.figure(figsize=(10, 10))
-            plt.subplot(1, 3, 1)
-            plt.title('T1 Original Image')
-            plt.imshow(t1_image, cmap='gray')
-            plt.axis('off')
-
-            plt.subplot(1, 3, 2)
-            plt.title('T1 Mask')
-            plt.imshow(t1_segmented, cmap='gray')
-            plt.axis('off')
-
-            plt.subplot(1, 3, 3)
-            plt.title('T1 Masked Image')
-            plt.imshow(t1_masked, cmap='gray')
-            plt.axis('off')
-
+    for img in images:
+        # Convert to grayscale
+        gray_img = rgb2gray(img)
+        
+        # Otsu's method for segmentation
+        _, otsu_img = cv2.threshold((gray_img * 255).astype(np.uint8), 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        
+        if plot_first_image:
+            # grayscale image
+            plt.figure(figsize=(12, 6))
+            plt.subplot(1, 2, 1)
+            plt.imshow(gray_img, cmap='gray')
+            plt.title('Original Grayscale Image')
+            
+            #  Otsu segmented image
+            plt.subplot(1, 2, 2)
+            plt.imshow(otsu_img, cmap='gray')
+            plt.title('Otsu Segmented Image')
             plt.show()
-            printed_t1_image = True
+            
+            plot_first_image = False
+        
+        # First-order features
+        first_order_features = [
+            np.mean(otsu_img),
+            np.std(otsu_img, ddof=1),
+            skew(otsu_img.flatten(), bias=True),
+            kurtosis(otsu_img.flatten(), fisher=False)
+        ]
+        first_order_names = ['mean', 'std', 'skewness', 'kurtosis']
+        
+        # Second-order co-occurrence matrix features
+        levs = 15
+        gray_img = levs * (gray_img / np.max(gray_img))
+        image = np.asarray(gray_img, dtype=np.uint8)
+        result = graycomatrix(image, distances=[1], angles=[0, np.pi/4, np.pi/2, 3*np.pi/4], levels=levs + 1)
+        coocurrence_features = [
+            np.mean(graycoprops(result, prop='contrast')),
+            np.max(graycoprops(result, prop='contrast')) - np.min(graycoprops(result, prop='contrast')),
+            np.mean(graycoprops(result, prop='dissimilarity')),
+            np.max(graycoprops(result, prop='dissimilarity')) - np.min(graycoprops(result, prop='dissimilarity')),
+            np.mean(graycoprops(result, prop='energy')),
+            np.max(graycoprops(result, prop='energy')) - np.min(graycoprops(result, prop='energy')),
+            np.mean(graycoprops(result, prop='homogeneity')),
+            np.max(graycoprops(result, prop='homogeneity')) - np.min(graycoprops(result, prop='homogeneity')),
+            np.mean(graycoprops(result, prop='correlation')),
+            np.max(graycoprops(result, prop='correlation')) - np.min(graycoprops(result, prop='correlation')),
+            np.mean(graycoprops(result, prop='ASM')),
+            np.max(graycoprops(result, prop='ASM')) - np.min(graycoprops(result, prop='ASM'))
+        ]
+        coocurrence_names = [
+            'contrast_mean', 'contrast_range',
+            'dissimilarity_mean', 'dissimilarity_range',
+            'energy_mean', 'energy_range',
+            'homogeneity_mean', 'homogeneity_range',
+            'correlation_mean', 'correlation_range',
+            'ASM_mean', 'ASM_range'
+        ]
+        
+        # Local Binary Pattern features
+        lbp = local_binary_pattern(gray_img, P=8, R=1, method='uniform')
+        lbp_hist, _ = np.histogram(lbp.ravel(), bins=np.arange(0, 8 + 3), range=(0, 8 + 2))
+        lbp_features = lbp_hist.astype("float")
+        lbp_names = [f'LBP_{i+1}' for i in range(len(lbp_features))]
+        
+        # Combine all features
+        feature_vector = np.concatenate([
+            first_order_features, coocurrence_features, lbp_features
+        ])
+        feature_names = first_order_names + coocurrence_names + lbp_names
+        
+        features.append(feature_vector)
+    
+    # Print feature names and values in DataFrame format
+    df_features = pd.DataFrame(features, columns=feature_names)
+    print(df_features)
+    
+    return np.array(features)
 
-        # segmented image for T2
-        if not printed_t2_image:
-            plt.figure(figsize=(10, 10))
-            plt.subplot(1, 3, 1)
-            plt.title('T2 Original Image')
-            plt.imshow(t2_image, cmap='gray')
-            plt.axis('off')
+#load 
+X, y = load_images(DATA_PATH_LOW, DATA_PATH_HIGH, DIMENSION)
 
-            plt.subplot(1, 3, 2)
-            plt.title('T2 Mask')
-            plt.imshow(t2_segmented, cmap='gray')
-            plt.axis('off')
+# Split 70-30
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=SEED)
 
-            plt.subplot(1, 3, 3)
-            plt.title('T2 Masked Image')
-            plt.imshow(t2_masked, cmap='gray')
-            plt.axis('off')
+# train test
+X_train_features = extract_features(X_train)
+X_test_features = extract_features(X_test)
 
-            plt.show()
-            printed_t2_image = True
-
-    except Exception as e:
-        print(f"false id {id_}: {e}")
-
-#  NumPy arrays
-X = np.array(X)
-y = np.array(y)
-
-# checking feat.
-print(f"shape of feat (X): {X.shape}")
-print(f"shape of labels (y): {y.shape}")
-
-# Convert features to DataFrame and print
-X_df = pd.DataFrame(X, columns=[
-    'T1_Mean', 'T1_Std', 'T1_Kurtosis', 'T1_Skewness',
-    'T2_Mean', 'T2_Std', 'T2_Kurtosis', 'T2_Skewness',
-    'T1_Contrast', 'T1_Dissimilarity', 'T1_Homogeneity', 'T1_Energy', 'T1_Correlation',
-    'T2_Contrast', 'T2_Dissimilarity', 'T2_Homogeneity', 'T2_Energy', 'T2_Correlation'
-])
-print(X_df)
-
-# normalize
+# normalization
 scaler = StandardScaler()
-X_scaled = scaler.fit_transform(X)
+X_train_features = scaler.fit_transform(X_train_features)
+X_test_features = scaler.transform(X_test_features)
 
-#train test 70-30
-X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.3, random_state=42)
-
-#models
-models = {
-    "Random Forest": RandomForestClassifier(random_state=42),
-    "SVM": SVC(probability=True, random_state=42),
-    "KNN": KNeighborsClassifier(),
-    "Logistic Regression": LogisticRegression(random_state=42),
-    "Decision Tree": DecisionTreeClassifier(random_state=42)
+# ----------- train and test----------- #
+classifiers = {
+    "KNN": (KNeighborsClassifier(), {'n_neighbors': [3, 5, 7]}),
+    "SVM": (SVC(probability=True), {'C': [0.1, 1, 10], 'kernel': ['linear', 'rbf']}),
+    "Logistic Regression": (LogisticRegression(), {'C': [0.1, 1, 10]}),
+    "Random Forest": (RandomForestClassifier(), {'n_estimators': [50, 100, 200]}),
+    "XGBoost": (XGBClassifier(), {'n_estimators': [50, 100, 200], 'learning_rate': [0.01, 0.1, 0.2]})
 }
 
-# initialize 
-best_model = None
 best_accuracy = 0
+best_classifier_name = None
+best_classifier = None
+accuracies = []
+roc_curves = {}
+computation_times = []
+cv_results = {}
 
-for model_name, model in models.items():
-    print(f"\n=== {model_name} ===")
-    
+kf = KFold(n_splits=5, shuffle=True, random_state=SEED)
+
+for name, (clf, param_grid) in classifiers.items():
     start_time = time.time()
-    
-    # Cross-validation
-    cv_scores = cross_val_score(model, X_train, y_train, cv=5)
-    mean_cv_score = cv_scores.mean()
-    
-    # training
-    model.fit(X_train, y_train)
-    
-    # predictions on test set
-    y_pred = model.predict(X_test)
-    
-    # accuracy computing
-    accuracy = model.score(X_test, y_test)
-    
+    grid_search = GridSearchCV(clf, param_grid, cv=kf, scoring='accuracy')
+    grid_search.fit(X_train_features, y_train)
     end_time = time.time()
-    print(f"Computation time for {model_name}: {end_time - start_time} seconds")
+    computation_time = end_time - start_time
+    computation_times.append((name, computation_time))
     
-    # Prints
-    print(f"Cross-Validation Accuracy: {mean_cv_score:.4f}")
-    print(f"Test Accuracy: {accuracy:.4f}")
-    print("\nClassification Report:")
-    print(classification_report(y_test, y_pred, zero_division=0))
+    best_clf = grid_search.best_estimator_
+    y_pred = best_clf.predict(X_test_features)
+    accuracy = accuracy_score(y_test, y_pred)
+    accuracies.append((name, accuracy))
     
-    # Confusion Matrix
+    print(f"{name} Best Parameters: {grid_search.best_params_}")
+    print(f"{name} Accuracy: {accuracy:.2f}")
+    print(f"{name} Computation Time: {computation_time:.2f} seconds")
+    print(classification_report(y_test, y_pred))
+    
+    # Confusion matrix
     cm = confusion_matrix(y_test, y_pred)
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=["Benign", "Cancer"], yticklabels=["Benign", "Cancer"])
-    plt.title(f"Confusion Matrix for {model_name}")
-    plt.xlabel("Predicted")
-    plt.ylabel("True")
+    plt.figure(figsize=(6, 4))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=['Low Grade', 'High Grade'], yticklabels=['Low Grade', 'High Grade'])
+    plt.title(f'{name} Confusion Matrix')
+    plt.xlabel('Predicted')
+    plt.ylabel('True')
     plt.show()
     
-    # best accuracy
+    # ROC curve
+    if hasattr(best_clf, "predict_proba"):
+        y_prob = best_clf.predict_proba(X_test_features)[:, 1]
+    else:  # Use decision function for SVM
+        y_prob = best_clf.decision_function(X_test_features)
+    fpr, tpr, _ = roc_curve(y_test, y_prob)
+    roc_auc = auc(fpr, tpr)
+    roc_curves[name] = (fpr, tpr, roc_auc)
+    
+    # Cross-validation scores
+    cv_scores = cross_val_score(best_clf, X_train_features, y_train, cv=kf, scoring='accuracy')
+    cv_results[name] = cv_scores
+    
+    # Update best classifier
     if accuracy > best_accuracy:
-        best_model = model
         best_accuracy = accuracy
+        best_classifier_name = name
+        best_classifier = best_clf
 
-print(f"Best model is: {type(best_model).__name__} with accuracy: {best_accuracy:.4f}")
+# Print best classifier
+print(f"Best Classifier: {best_classifier_name} with Accuracy: {best_accuracy:.2f}")
 
-
-output_dir = r" your path "
-os.makedirs(output_dir, exist_ok=True)
-
-
-plt.figure(figsize=(8, 5))
-sns.countplot(x=y, palette="pastel")
-plt.title("labeling classifying "category")
-plt.ylabel("sum")
-plt.xticks(ticks=[0, 1], labels=["Benign", "Cancer"])
-label_histogram_path = os.path.join(output_dir, "label_distribution.png")
-plt.savefig(label_histogram_path)
+# Plot histogram of accuracies
+classifier_names, classifier_accuracies = zip(*accuracies)
+plt.figure(figsize=(10, 6))
+plt.bar(classifier_names, classifier_accuracies, color='skyblue')
+plt.xlabel('Classifier')
+plt.ylabel('Accuracy')
+plt.title('Classifier Accuracies')
+plt.ylim(0, 1)
 plt.show()
 
-#histograms for feautures
-num_features_to_plot = 5  
-plt.figure(figsize=(16, 8))
+# Plot ROC curves
+plt.figure(figsize=(10, 6))
+for name, (fpr, tpr, roc_auc) in roc_curves.items():
+    plt.plot(fpr, tpr, label=f'{name} (AUC = {roc_auc:.2f})')
+plt.plot([0, 1], [0, 1], 'k--')
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('ROC Curves')
+plt.legend(loc='lower right')
+plt.show()
 
-for i in range(num_features_to_plot):
-    plt.subplot(1, num_features_to_plot, i + 1)
-    sns.histplot(X_scaled[:, i], kde=True, bins=30, color="blue")
-    plt.title(f"fearure {i+1} distribution")
-    plt.xlabel("value")
-    plt.ylabel("frequency")
-    plt.tight_layout()
+# Plot computation times
+classifier_names, classifier_times = zip(*computation_times)
+plt.figure(figsize=(10, 6))
+plt.bar(classifier_names, classifier_times, color='lightgreen')
+plt.xlabel('Classifier')
+plt.ylabel('Computation Time (seconds)')
+plt.title('Classifier Computation Times')
+plt.show()
 
-feature_histogram_path = os.path.join(output_dir, "feature_distributions.png")
-plt.savefig(feature_histogram_path)
+# Plot cross-validation results
+plt.figure(figsize=(10, 6))
+for name, cv_scores in cv_results.items():
+    plt.plot(range(1, kf.get_n_splits() + 1), cv_scores, marker='o', label=f'{name} (Mean = {np.mean(cv_scores):.2f})')
+plt.xlabel('Fold')
+plt.ylabel('Accuracy')
+plt.title('Cross-Validation Scores')
+plt.legend(loc='lower right')
 plt.show()
