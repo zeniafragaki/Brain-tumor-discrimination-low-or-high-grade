@@ -6,16 +6,36 @@ The results of the evaluation of different models are summarized in Table 1. Log
 
 1.Accuracy of different models used: 
 
-![image](https://github.com/user-attachments/assets/ee26383b-5cc7-44c8-a288-2d041ec9253a)
-
-ROC Curve for different Models:
-
-![image](https://github.com/user-attachments/assets/d3265aa1-a9c8-4a4a-a19f-c71a21bbfba5)
+![image](https://github.com/user-attachments/assets/40ac25db-4328-448f-bebc-f07aa0abd7e0)
 
 
 
-4.2. Discussion
+DISCUSSION 
 
 
-The results indicate that Logistic Regression outperforms other classifiers in this case, especially when the dataset size is increased to 50 and 100 images. While KNN provided reasonable results with fewer images, its performance did not significantly improve with the larger dataset. Other more complex models, such as Random Forest and Gradient Boosting, did not outperform Logistic Regression, potentially due to the small dataset.
-Data augmentation was crucial in improving model performance. Without augmentation, models were prone to overfitting due to the limited size of the dataset. By applying transformations to the images, the models became more robust and generalized better to unseen data.
+As it highlighted before, Random Forest, Logistic Regression, 
+and Decision Tree achieved higher accuracy than cross validation 
+accuracy scores, indicating that it could be an overfitting problem. 
+According SVM and KNN despite the low accuracies they have 
+achieved higher cross validation accuracies suggesting they could 
+possibly generalize better with further processing and tuning. 
+
+
+ CONCLUSION 
+
+ 
+In conclusion, the project demonstrates the potential of machine 
+learning techniques in classifying medical images for benign and 
+malignant detection. Random Forest algorithm appears to have 
+the most balanced combination between accuracy and cross 
+validation accuracy. This project was done under specific one 
+circumstances for an undergraduate student project facing 
+problems as lack of bigger amount of data, some time-consuming 
+restrictions and not significant computational power. Although, 
+seems to have some understandable and reasonable results. Future 
+work on the study is important to overcome the obstacles of 
+overfitting, suggesting starting the research from Random Forest 
+as it has shown quite well performance the entire duration of the 
+research with no significant ups and downs as the other models.
+
+
