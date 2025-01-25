@@ -10,6 +10,29 @@ The results of the evaluation of different models are summarized below.
 
 ![image](https://github.com/user-attachments/assets/903c7930-0bc2-407b-b25f-5e312a3007d5)
 
+Among the results of  Table  below and Figure above, Random Forest 
+algorithm stands out as it had achieved the perfect score of 
+100% accuracy to all the test set.Although,cross validation 
+score drops to 87% ,could be a sign of not the best 
+generalization of the model also could indicate 
+overfitting.According the other algorithms SVM and XGBoost 
+had achieved slightly good performance with rising scores from 
+accuracy to all test set to cross validation accuracy,suggesting 
+good performance and generalization of the model.In the other 
+hand,combing both results,it shown that Logistic Regression 
+and KNN had a very small drop (3.3%) and seems to be a stable 
+algorithm with high accuracy scores.
+
+# Cross Validation
+
+![image](https://github.com/user-attachments/assets/72ffa5a6-5b64-448e-8878-70f7e5c67e82)
+
+According to K-Fold Cross-Validation scores of each 
+algorithm, it is observed that Random Forest and SVM 
+achieved 87% and KNN with Logistic Regression are followed 
+by 80% each. Last one with the lower cross validation score, 
+but not too low is XGBoost with seventy-three percentage 
+(73%).
 
 # ROC Curve
 
