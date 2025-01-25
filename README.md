@@ -26,6 +26,61 @@ In low-grade tumors, H&E reveals relatively uniform nuclei, lower cellular densi
 
 Citation :
 
+# Classifiers
+
+
+The following machine learning classifiers were evaluated: K
+Nearest Neighbors (KNN), Logistic Regression, Support 
+Vector Machine (SVM), Radom Forrest and XGBoost. Each 
+model was trained in fifty augmented images and evaluated on 
+a test set of ten images.
+
+# Data augmentation
+
+
+Data augmentation techniques had been used to generate  
+images, including horizontal and vertical flips, rotations, and 
+zoom. These transformations help to reduce overfitting and 
+improve the robustness of the models.
+
+# Segmentation
+
+Segmentation is a process used for distinguishing our area of 
+interest, with goal the better analysis and extraction of our 
+desired features.  
+In the current project, Otsu thresholding method has been used 
+for segmentation. Otsu algorithm selects a threshold that 
+maximizes the intensity between regions, with aim of 
+separating the image desired areas.
+
+# Feature extraction and pre-processing 
+
+
+The images were resized to 96x96 pixels and normalized. 
+StandardScaler was used to scale the pixel values to a suitable 
+range for machine learning. The images were then flattened into 
+1D arrays to serve as input features for the classifiers. 
+Additionally, more advanced features were extracted from the 
+images to capture detailed texture and structural information. 
+These features include some first order features like: Mean, 
+standard deviation, skewness, and kurtosis. Additionally, 
+second order features are extracted using Gray Level Co
+Occurrence Matrix. Some of these are: Contrast, dissimilarity, 
+energy, and homogeneity. Also, Local Binary Pattern (LBP) 
+method is used. 
+
+# Validation 
+
+
+For validation of the model, K-fold Cross Validation technique 
+is used using GridSearchCV library, which helps to find the best 
+hyperparameter of each model. In K-fold validation dataset is 
+split into k number of subsets (folds) and be trained to all the 
+subsets except one (k-1) subset which is used for the evaluation 
+[8]. GridSearchCV function is scikit-learn function that helps 
+the tuning of hyperparameters of a machine learning model by 
+using different combinations of hyperparameters. In the end of 
+the research, the best set is selected based on the metrics.[9]
 
 If you use any part of this project in your work, kindly reference it using the following citation:
 
