@@ -1,2 +1,8 @@
-All medical data (images) was provided from archive of MEDISP LAB , Biomedical Engineering Department at University of West Attica.
-2 small set of H&E images -10 low grade brain tumor and 10 high grade brain tumor.
+# Dataset
+
+The dataset for this study consists of ten low-grade and ten 
+high-grade brain tumor images, collected MEDISP ResearchLaboratory Archive of Biomedical Engineering Dept. at 
+University of West Attica. Images were resized to a dimension 
+of 96x96 pixels. Due to lack of large data set, data augmentation 
+techniques were applied to artificially increase the size of the 
+dataset, providing more diverse training samples. 
