@@ -81,6 +81,8 @@ the tuning of hyperparameters of a machine learning model by
 using different combinations of hyperparameters. In the end of 
 the research, the best set is selected based on the metrics.[9]
 
+# Citation
+
 If you use any part of this project in your work, kindly reference it using the following citation:
 
 Fragaki,Z (2024). An Evaluation of Machine Learning Classifiers for Image Classification of Low- and High-Grade Brain Tumor Samples. GitHub. Available at: https://github.com/zeniafragaki/Brain-tumor-discrimination-low-or-high-grade
