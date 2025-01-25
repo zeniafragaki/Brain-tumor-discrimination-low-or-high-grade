@@ -4,7 +4,7 @@
 
  Statistical analysis of features able to discriminate between low and high grade brain tumor H&amp;E images
 
- This job is discussing the use of Machine Learning (ML) techniques for the classification of low- and high-grade brain tumor images. 
+ This work is discussing the use of Machine Learning (ML) techniques for the classification of low- and high-grade brain tumor images. 
  Some of the most popular classifying algorithms were used to test the research case. Our case study has selected K-Nearest Neighbors (KNN), Logistic Regression, Support Vector Machine (SVM), Decision Trees, Random 
  Forest, Gradient Boosting, and XGBoost classifiers. Because of our limited dataset which contains 20 images (10 low and 10 high grade brain tumor), data augmentation techniques were used to achieve higher 
  statistic accuracy values. 
@@ -24,7 +24,6 @@ Primary brain tumors originate in the brain, while secondary brain tumors, or me
 H&E staining is a critical technique in biomedical microscopy for the analysis of tissues. In our images by highlighting key histological features, it aids in distinguishing between low-grade and high-grade brain tumors. Hematoxylin stains nuclei a deep blue purple, emphasizing nuclear size, shape, and chromatin patterns, while eosin stains cytoplasmic and extracellular components pink, providing contrast to tissue architecture.
 In low-grade tumors, H&E reveals relatively uniform nuclei, lower cellular density, and minimal mitotic activity. High-grade tumors, in contrast, show marked nuclear atypia, increased mitoses, necrosis, and microvascular proliferation. These features enable pathologists to assess tumor grade and guide therapeutic strategies effectively
 
-Citation :
 
 # Classifiers
 
